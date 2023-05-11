@@ -1,7 +1,7 @@
-# from django.shortcuts import render
-from django.http import JsonResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from .models import Advocate
+from .serializers import AdvocateSerializer
 
 
 @api_view(['GET'])
@@ -12,11 +12,13 @@ def endpoints(request):
 
 @api_view(['GET'])
 def advocates_list(request):
-    data = ['Dennis', 'keshav', 'Myself']
-    return JsonResponse(data, safe=False)
+    advocates = Advocate.objects.all()
+    serialzer = AdvocateSerializer(advocates, many=True)
+    return Response(serialzer.data)
 
 
 @api_view(['POST'])
 def advocate_details(request, username):
-    data = username
-    return JsonResponse(data, safe=False)
+    advocate = Advocate.objects.get(username=username)
+    serializer = AdvocateSerializer(advocate, many=False)
+    return Response(serializer.data)
