@@ -1,7 +1,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Advocate
-from .serializers import AdvocateSerializer
+from .models import Advocate, Company
+from .serializers import AdvocateSerializer, CompanySerializer
 from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework import status
@@ -20,7 +20,7 @@ DELETE /advocates/:id
 
 @api_view(['GET'])
 def endpoints(request):
-    data = ['/advocates', 'advocates/:username']
+    data = ['/advocates', 'advocates/:username', 'company/']
     return Response(data)
 
 
@@ -52,7 +52,7 @@ def advocates_list(request):
         return Response(serializer.data)
 
 
-class AdvocateDetail(APIView):
+class AdvocateDetailView(APIView):
     def get_object(self, username):
         try:
             return Advocate.objects.get(username=username)
@@ -79,3 +79,21 @@ class AdvocateDetail(APIView):
         advocate.delete()
 
         return Response("Advocate Deleted.")
+
+
+class CompanyListView(APIView):
+    def get(self, request):
+        companies = Company.objects.all()
+        serializer = CompanySerializer(companies, many=True)
+
+        return Response(serializer.data)
+
+    def post(self, request):
+        # print(request.data)
+        # return Response("successfull")
+        company = Company.objects.create(
+            name=request.data['name'],
+            bio=request.data['bio'])
+        serializer = CompanySerializer(company, many=False)
+
+        return Response(serializer.data)
