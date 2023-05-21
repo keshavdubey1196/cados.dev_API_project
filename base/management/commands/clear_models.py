@@ -1,7 +1,7 @@
 from django.core.management import BaseCommand
-from base.models import Advocate
+from base.models import Company
 
 
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
-        Advocate.objects.all().delete()
+        Company.objects.all().delete()

@@ -1,12 +1,12 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from .models import Advocate, Company
-from .serializers import AdvocateSerializer, CompanySerializer
+from .models import Company, UserModel
+from .serializers import CompanySerializer, UserModelSerializer
 from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-
+# from django.contrib.auth.models import User
 
 # RestFul conventions
 """
@@ -19,83 +19,71 @@ DELETE /advocates/:id
 """
 
 
-@api_view(['GET'])
-def endpoints(request):
-    data = ['/advocates', 'advocates/:username', 'company/']
-    return Response(data)
-
-
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
-def advocates_list(request):
-    # /advocates/?query=keshav
+@api_view(["GET", "POST", "DELETE"])
+def company_list(request):
     if request.method == "GET":
-        query = request.GET.get('query')
-
-        if query is None:
-            query = ''
-
-        # For searching
-        advocates = Advocate.objects.filter(
-            Q(username__icontains=query) | Q(bio__icontains=query))
-        serialzer = AdvocateSerializer(advocates, many=True)
-        return Response(serialzer.data)
-
-    if request.method == "POST":
-        # print(request.data)
-        # return Response("done")
-
-        adv = Advocate.objects.create(
-            username=request.data['username'],
-            bio=request.data['bio'],
-        )
-        serializer = AdvocateSerializer(adv, many=False)
-
-        return Response(serializer.data)
-
-
-class AdvocateDetailView(APIView):
-    def get_object(self, username):
-        try:
-            return Advocate.objects.get(username=username)
-        except Advocate.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-
-    def get(self, request, username):
-        advocate = self.get_object(username)
-        serializer = AdvocateSerializer(advocate, many=False)
-
-        return Response(serializer.data)
-
-    def put(self, request, username):
-        advocate = self.get_object(username)
-
-        advocate.username = request.data['username']
-        advocate.bio = request.data['bio']
-
-        serializer = AdvocateSerializer(advocate, many=False)
-        return Response(serializer.data)
-
-    def delete(self, request, username):
-        advocate = self.get_object(username)
-        advocate.delete()
-
-        return Response("Advocate Deleted.")
-
-
-class CompanyListView(APIView):
-    def get(self, request):
         companies = Company.objects.all()
         serializer = CompanySerializer(companies, many=True)
 
         return Response(serializer.data)
 
-    def post(self, request):
-        # print(request.data)
-        # return Response("successfull")
-        company = Company.objects.create(
-            name=request.data['name'],
-            bio=request.data['bio'])
-        serializer = CompanySerializer(company, many=False)
+    if request.method == "POST":
+        name = request.data["name"]
+        bio = request.data["bio"]
+
+        obj = Company.objects.create(
+            name=name,
+            bio=bio
+        )
+        obj.save()
+        serializer = CompanySerializer(obj, many=False)
 
         return Response(serializer.data)
+
+    if request.method == "DELETE":
+        company_id = request.data["company_id"]
+        comp_obj = Company.objects.get(id=company_id)
+        comp_obj.delete()
+
+        return Response(status.HTTP_200_OK)
+
+
+@api_view(["GET", "POST"])
+def usersCreate(request):
+    if request.method == "GET":
+        users = UserModel.objects.all()
+        serializer = UserModelSerializer(users, many=True)
+
+        return Response(serializer.data)
+
+    if request.method == "POST":
+        if UserModel.objects.filter(Q(email__icontains=request.data["email"])):
+            return Response("This user already exists. If you want to update go to the patch link")
+            # user = UserModel.objects.get(email=request.data["email"])
+        else:
+            serializer = UserModelSerializer(data=request.data)
+            if serializer.is_valid():
+                user = serializer.save()
+                user.company.add(*request.data["company"])
+                user.save()
+
+                return Response(serializer.data)
+            else:
+                return Response(serializer.errors)
+
+
+@api_view(["PATCH"])
+def updateCompanyusers(request):
+    if request.method == "PATCH":
+        username = request.data["username"]
+        email = request.data["email"]
+        company_id = request.data["company"][0]
+
+        if UserModel.objects.filter(username=username, email=email):
+            user = UserModel.objects.get(username=username, email=email)
+            company = Company.objects.get(id=company_id)
+            company.users.add(user)
+
+            return Response(status.HTTP_200_OK)
+        else:
+            return Response(status.HTTP_404_NOT_FOUND)
